@@ -20,17 +20,12 @@ def retrieveFileMeta(file_ids,outputfile):
     fields = [
         "file_id",
         "file_name",
-        "cases.submitter_id",
-        "cases.case_id",
-        "data_category",
-        "data_type",
-        "cases.samples.tumor_descriptor",
-        "cases.samples.tissue_type",
         "cases.samples.sample_type",
-        "cases.samples.submitter_id",
-        "cases.samples.sample_id",
-        "cases.samples.portions.analytes.aliquots.aliquot_id",
-        "cases.samples.portions.analytes.aliquots.submitter_id"
+        "cases.project.primary_site",
+        "cases.exposures.alcohol_history",
+        "cases.exposures.cigarettes_per_day",
+        "cases.exposures.years_smoked",
+        "cases.family_histories.relative_with_cancer_history",
         ]
 
     filters = {
@@ -48,7 +43,7 @@ def retrieveFileMeta(file_ids,outputfile):
         "fields": fields,
         "format": "TSV",
         "pretty": "true",
-        "size": 1000
+        "size": 12000
     }
     # print (params)
     #print (filters)
@@ -143,7 +138,7 @@ def genFilePayload(file_ids,payloadfile):
         "format":"TSV",
         "fields":"file_id,file_name,cases.submitter_id,cases.case_id,data_category,data_type,cases.samples.tumor_descriptor,cases.samples.tissue_type,cases.samples.sample_type,cases.samples.submitter_id,cases.samples.sample_id,cases.samples.portions.analytes.aliquots.aliquot_id,cases.samples.portions.analytes.aliquots.submitter_id",
         "pretty":"true",
-        "size": "1000"
+        "size": "12000"
     }
     json_str = json.dumps(filters)
     fd.write(json_str)
@@ -166,7 +161,7 @@ def curlCaseMeta(case_ids,payloadfile,outputfile):
 
 if __name__ == '__main__':
 
-    data_dir = "/Users/yueshi/Downloads/project/data/"
+    data_dir = "/Users/Tony/Desktop/"
     filename = data_dir+"file_case_id_DNA.csv"
     
     
@@ -176,10 +171,10 @@ if __name__ == '__main__':
     # print(case_ids)
     
     fileids_meta_outfile = data_dir + "files_meta.tsv"
-    caseids_meta_outfile = data_dir + "cases_meta.tsv"
+    # caseids_meta_outfile = data_dir + "cases_meta.tsv"
     # python request method
     retrieveFileMeta(file_ids,fileids_meta_outfile)
-    retrieveCaseMeta(case_ids,caseids_meta_outfile)
+    # retrieveCaseMeta(case_ids,caseids_meta_outfile)
 
 
 

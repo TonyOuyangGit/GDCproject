@@ -46,14 +46,6 @@ def lassoSelection(X_train, y_train, n):
 	return features
 
 
-def specificity_score(y_true, y_predict):
-	'''
-	true_negative rate
-	'''
-	true_negative = len([index for index,pair in enumerate(zip(y_true,y_predict)) if pair[0]==pair[1] and pair[0]==0 ])
-	real_negative = len(y_true) - sum(y_true)
-	return true_negative / real_negative 
-
 def model_fit_predict(X_train,X_test,y_train,y_test):
 
 	np.random.seed(2018)
@@ -69,12 +61,22 @@ def model_fit_predict(X_train,X_test,y_train,y_test):
 	from sklearn.metrics import recall_score
 	models = {
 		'LogisticRegression': LogisticRegression(),
+		# 'ExtraTreesClassifier': ExtraTreesClassifier(),
+		# 'RandomForestClassifier': RandomForestClassifier(),
+  #   	'AdaBoostClassifier': AdaBoostClassifier(),
+  #   	'GradientBoostingClassifier': GradientBoostingClassifier(),
+  #   	'SVC': SVC()
 	}
 	tuned_parameters = {
 		'LogisticRegression':{'random_state': 0,
 								'solver' : 'lbfgs',
 								'multi_class' : 'multinomial'
 								}
+		# 'ExtraTreesClassifier': { 'n_estimators': [16, 32] },
+		# 'RandomForestClassifier': { 'n_estimators': [16, 32] },
+  #   	'AdaBoostClassifier': { 'n_estimators': [16, 32] },
+  #   	'GradientBoostingClassifier': { 'n_estimators': [16, 32], 'learning_rate': [0.8, 1.0] },
+  #   	'SVC': {'kernel': ['rbf'], 'C': [1, 10], 'gamma': [0.001, 0.0001]},
 	}
 	scores= {}
 	# for key in models:
@@ -83,59 +85,54 @@ def model_fit_predict(X_train,X_test,y_train,y_test):
 	# clf.fit(X_train,y_train)
 	y_test_predict = clf.predict(X_test)
 	y_score = clf.decision_function(X_test)
+	y_test = label_binarize(y_test, classes=[0, 1, 2])
+	n_classes = y_test.shape[1]
+	fpr = dict()
+	tpr = dict()
+	roc_auc = dict()
+	for i in range(n_classes):
+		fpr[i], tpr[i], _ = roc_curve(y_test[:, i], y_score[:, i])
+		roc_auc[i] = auc(fpr[i], tpr[i])
+	# First aggregate all false positive rates
+	all_fpr = np.unique(np.concatenate([fpr[i] for i in range(n_classes)]))
 
-	precision_micro = precision_score(y_test, y_test_predict, average = "micro")
-	precision_marco = precision_score(y_test, y_test_predict, average = "macro")
-	precision_weighted = precision_score(y_test, y_test_predict, average = "weighted")
-	print("precision_micro: " + str(precision_micro))
-	print("precision_marco: " + str(precision_marco))
-	print("precision_weighted: " + str(precision_weighted))
-	accuracy = accuracy_score(y_test, y_test_predict)
-	print("accuracy: " + str(accuracy))
-	f1_micro = f1_score(y_test, y_test_predict, average = "micro")
-	f1_macro = f1_score(y_test, y_test_predict, average = "macro")
-	f1_weighted = f1_score(y_test, y_test_predict, average = "weighted")
-	print("f1_micro: " + str(f1_micro))
-	print("f1_macro: " + str(f1_macro))
-	print("f1_weighted: " + str(f1_weighted))
-	recall_micro = recall_score(y_test, y_test_predict, average = "micro")
-	recall_macro = recall_score(y_test, y_test_predict, average = "macro")
-	recall_weighted = recall_score(y_test, y_test_predict, average = "weighted")
-	print("recall_micro: " + str(recall_micro))
-	print("recall_macro: " + str(recall_macro))
-	print("recall_weighted: " + str(recall_weighted))
+	# Then interpolate all ROC curves at this points
+	mean_tpr = np.zeros_like(all_fpr)
+	for i in range(n_classes):
+	    mean_tpr += interp(all_fpr, fpr[i], tpr[i])
 
-	scores = [precision_marco,accuracy,f1_macro,recall_macro]
+	# Finally average it and compute AUC
+	mean_tpr /= n_classes
+	fpr["macro"] = all_fpr
+	tpr["macro"] = mean_tpr
+	roc_auc["macro"] = auc(fpr["macro"], tpr["macro"])
 
-	return scores
+	# Plot all ROC curves
+	plt.figure()
+	lw = 2 
+	plt.plot(fpr["macro"], tpr["macro"],
+	         label='macro-average ROC curve (area = {0:0.2f})'
+	               ''.format(roc_auc["macro"]),
+	         color='navy', linestyle=':', linewidth=4)
 
+	colors = cycle(['aqua', 'darkorange', 'cornflowerblue'])
+	for i, color in zip(range(n_classes), colors):
+	    plt.plot(fpr[i], tpr[i], color=color, lw=lw,
+	             label='ROC curve of class {0} (area = {1:0.2f})'
+	             ''.format(i, roc_auc[i]))
 
-
-def draw(scores):
-	'''
-	draw scores.
-	'''
-	import matplotlib.pyplot as plt
-	logger.info("scores are {}".format(scores))
-	ax = plt.subplot(111)
-	precisions = []
-	accuracies =[]
-	f1_scores = []
-	recalls = []
-	N = len(scores)
-	ind = 0  # set the x locations for the groups
-	width = 0.1        # the width of the bars
-	precisions.append(scores[0])
-	accuracies.append(scores[1])
-	f1_scores.append(scores[2])
-	recalls.append(scores[3])
-	precision_bar = ax.bar(ind, precisions,width=0.1,color='b',align='center')
-	accuracy_bar = ax.bar(ind+2*width, accuracies,width=0.1,color='g',align='center')
-	f1_bar = ax.bar(ind+4*width, f1_scores,width=0.1,color='r',align='center')
-	recall_bar = ax.bar(ind+6*width, recalls,width=0.1,color='y',align='center')
-	ax.legend((precision_bar[0], accuracy_bar[0],f1_bar[0],recall_bar[0]), ('precision', 'accuracy','f1','sensitivity'))
-	ax.grid()
+	plt.plot([0, 1], [0, 1], 'k--', lw=lw)
+	plt.xlim([0.0, 1.0])
+	plt.ylim([0.0, 1.05])
+	plt.xlabel('False Positive Rate')
+	plt.ylabel('True Positive Rate')
+	plt.title('Some extension of Receiver operating characteristic to multi-class')
+	plt.legend(loc="lower right")
 	plt.show()
+
+	return 0
+
+
 
 if __name__ == '__main__':
 
@@ -183,14 +180,8 @@ if __name__ == '__main__':
 
 	scores = model_fit_predict(X_train[:,feaures_columns],X_test[:,feaures_columns],y_train,y_test)
 	# scores = model_fit_predict(X_train, X_test, y_train, y_test)
-	draw(scores)
-	#lasso cross validation
-	# lassoreg = Lasso(random_state=0)
-	# alphas = np.logspace(-4, -0.5, 30)
-	# tuned_parameters = [{'alpha': alphas}]
-	# n_fold = 10
-	# clf = GridSearchCV(lassoreg,tuned_parameters,cv=10, refit = False)
-	# clf.fit(X_train,y_train)
+	# draw(scores)
+
 
 
 

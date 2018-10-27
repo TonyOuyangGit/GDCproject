@@ -46,19 +46,23 @@ def extractLabel(inputfile):
 	df = pd.read_csv(inputfile, sep="\t")
 	#
 	# print (df[columns])
-	df['label'] = df['cases.0.samples.0.sample_type']
-	df.loc[df['cases.0.samples.0.sample_type'].str.contains("Normal"), 'label'] = 0
-	df.loc[df['cases.0.samples.0.sample_type'].str.contains("Tumor"), 'label'] = 1
-	tumor_count = df.loc[df.label == 1].shape[0]
-	normal_count = df.loc[df.label == 0].shape[0]
-	logger.info("{} Normal samples, {} Tumor samples ".format(normal_count,tumor_count))
-	columns = ['file_id','label']
+	df['label_sampletype'] = df['cases.0.samples.0.sample_type']
+	df['label_primarysite'] = df['cases.0.project.primary_site']
+	df['label'] = df['cases.0.project.primary_site']
+	df.loc[df['cases.0.samples.0.sample_type'].str.contains("Normal"), 'label'] = "Normal"
+	df.loc[df['cases.0.samples.0.sample_type'].str.contains("Tumor"), 'label'] = df['label_primarysite'] + " cancer"
+	df.loc[df['cases.0.samples.0.sample_type'].str.contains("Metastatic"), 'label'] = df['label_primarysite'] + " cancer"
+	df.loc[df['cases.0.samples.0.sample_type'].str.contains("Cancer"), 'label'] = df['label_primarysite'] + " cancer"
+	cancer_count = df.loc[df.label != "Normal"].shape[0]
+	normal_count = df.loc[df.label == "Normal"].shape[0]
+	logger.info("{} Normal samples, {} Tumor samples ".format(normal_count,cancer_count))
+	columns = ['file_id','label_sampletype','label_primarysite','label']
 	return df[columns]
 
 if __name__ == '__main__':
 
 
-	data_dir ="/Users/yueshi/Downloads/project/data/"
+	data_dir ="/Users/Tony/Desktop/"
 	# Input directory and label file. The directory that holds the data. Modify this when use.
 	dirname = data_dir + "live_miRNA"
 	label_file = data_dir + "files_meta.tsv"
@@ -76,7 +80,7 @@ if __name__ == '__main__':
 
 	#save data
 	result.to_csv(outputfile, index=False)
-	#print (labeldf)
+	print ("Data merge succeed!")
 
  
 
